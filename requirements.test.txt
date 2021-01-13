@@ -1,0 +1,7 @@
+pylint
+mypy
+pytest
+pytest-cov
+codecov
+setuptools_scm
+wheel

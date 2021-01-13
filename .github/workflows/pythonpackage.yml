@@ -1,0 +1,53 @@
+name: Python package
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          lfs: true
+      - uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.test.txt
+          pip3 install -e .
+          pip3 check
+      - name: Static tests
+        run: |
+          pylint sample_pkg
+          mypy sample_pkg
+      - name: Test with pytest
+        run: |
+          pytest tests/ --cov-report=xml --cov=sample_pkg
+      - name: Upload code coverage
+        run: |
+          codecov --token=${{ secrets.CODECOV_TOKEN }}
+      - name: Build wheel
+        run: |
+          python3 setup.py bdist_wheel
+      - name: Upload wheel to release
+        if: contains(github.ref, 'tags/v') && matrix.python-version == '3.6'
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*.whl
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
